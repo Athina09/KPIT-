@@ -1,531 +1,803 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Warehouse Swarm Dashboard</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: rgba(15, 23, 42, 0.95);
-      --panel: rgba(30, 41, 59, 0.95);
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent-strong: #38bdf8;
-      --danger: #fb7185;
-      --success: #34d399;
-      --grid: rgba(148,163,184,0.35);
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floor Dispatch — Sector 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --floor: #1c1a17;
+    --floor-line: #2c2823;
+    --paper: #eae3d2;
+    --paper-dark: #d9cfb6;
+    --paper-shadow: #b9ad8d;
+    --ink: #201c15;
+    --ink-soft: #55503f;
+    --amber: #e2a233;
+    --amber-deep: #a97318;
+    --hazard-dark: #17140f;
+    --red: #b8402a;
+    --green: #4c6e46;
+    --steel: #767065;
+  }
 
-    * {
-      box-sizing: border-box;
-    }
+  * { box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--text);
-      background: radial-gradient(circle at top, rgba(56,189,248,0.16), transparent 25%),
-                  linear-gradient(180deg, #020617 0%, #111827 100%);
-      font-family: Inter, system-ui, sans-serif;
-    }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--floor);
+    background-image:
+      repeating-linear-gradient(0deg, var(--floor-line) 0 1px, transparent 1px 42px),
+      repeating-linear-gradient(90deg, var(--floor-line) 0 1px, transparent 1px 42px);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+  }
 
-    header {
-      padding: 28px 24px 16px;
-      text-align: center;
-      background: linear-gradient(135deg, rgba(56,189,248,0.22), rgba(59,130,246,0.14));
-      border-bottom: 1px solid rgba(148,163,184,0.12);
-      backdrop-filter: blur(12px);
-    }
+  .hazard-bar {
+    height: 14px;
+    background: repeating-linear-gradient(135deg, var(--amber) 0 22px, var(--hazard-dark) 22px 44px);
+  }
 
-    header h1 {
-      margin: 0;
-      font-size: clamp(2rem, 2.4vw, 3rem);
-      letter-spacing: -0.03em;
-    }
+  header {
+    padding: 30px 24px 26px;
+    text-align: left;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
 
-    header p {
-      margin: 12px auto 0;
-      max-width: 720px;
-      color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.7;
-    }
+  header .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
 
-    .app-shell {
-      display: grid;
-      grid-template-columns: minmax(320px, 360px) 1fr;
-      gap: 20px;
-      padding: 24px;
-      max-width: 1240px;
-      margin: 0 auto;
-    }
+  header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    margin: 0;
+    color: #f2ede0;
+  }
 
-    .panel {
-      background: var(--card);
-      border: 1px solid rgba(148,163,184,0.12);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 24px 80px rgba(15,23,42,0.15);
-      backdrop-filter: blur(16px);
-    }
+  header p {
+    margin: 10px 0 0;
+    max-width: 640px;
+    color: #a49c85;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
 
-    .panel h2 {
-      margin-top: 0;
-      margin-bottom: 20px;
-      font-size: 1.25rem;
-    }
+  .app-shell {
+    display: grid;
+    grid-template-columns: minmax(300px, 340px) 1fr;
+    gap: 22px;
+    padding: 0 24px 32px;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
 
-    .panel p {
-      margin: 0;
-      color: var(--muted);
-    }
+  /* CLIPBOARD PANEL */
+  .clipboard {
+    background: var(--paper);
+    border-radius: 3px;
+    padding: 28px 22px 22px;
+    position: relative;
+    box-shadow: 0 18px 34px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(0,0,0,0.06);
+    background-image: repeating-linear-gradient(180deg, transparent 0 27px, rgba(0,0,0,0.035) 27px 28px);
+  }
 
-    .canvas-card {
-      position: relative;
-      overflow: hidden;
-      padding: 20px;
-    }
+  .clipboard::before {
+    content: "";
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 30px;
+    background: linear-gradient(180deg, #8a8378, #565148);
+    border-radius: 6px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  }
 
-    #gridCanvas {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 24px;
-      background: radial-gradient(circle at top left, rgba(56,189,248,0.16), transparent 22%),
-                  linear-gradient(180deg, rgba(255,255,255,0.04), rgba(15,23,42,0.9));
-      box-shadow: inset 0 0 45px rgba(15,23,42,0.2);
-      border: 1px solid rgba(148,163,184,0.2);
-    }
+  .clipboard::after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 12px;
+    background: #322e28;
+    border-radius: 3px;
+  }
 
-    .stats-grid {
-      display: grid;
-      gap: 14px;
-      margin-bottom: 24px;
-    }
+  .clipboard h2 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 1rem;
+    margin: 6px 0 18px;
+    color: var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 8px;
+  }
 
-    .stat-card {
-      background: var(--panel);
-      padding: 18px 20px;
-      border-radius: 18px;
-      border: 1px solid rgba(148,163,184,0.1);
-    }
+  .ctrl-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
 
-    .stat-card strong {
-      display: block;
-      font-size: 1.3rem;
-      margin-bottom: 6px;
-      color: white;
-    }
+  .ctrl {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    padding: 13px 10px;
+    border: none;
+    cursor: pointer;
+    color: #f2ede0;
+    border-radius: 2px;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .ctrl:active {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 rgba(0,0,0,0.35);
+  }
 
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 18px;
-    }
+  .ctrl.dispatch { background: var(--amber-deep); }
+  .ctrl.step { background: #3d4a63; }
+  .ctrl.auto { background: var(--steel); }
+  .ctrl.clear { background: var(--red); grid-column: span 2; }
 
-    .button-row button {
-      flex: 1 1 140px;
-      min-width: 140px;
-      padding: 14px 18px;
-      border-radius: 14px;
-      border: none;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s ease, opacity 0.2s ease;
-    }
+  .tally {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+  }
 
-    .button-row button:hover {
-      transform: translateY(-1px);
-      opacity: 0.95;
-    }
+  .tally div {
+    background: var(--paper-dark);
+    border: 1px solid var(--paper-shadow);
+    padding: 10px 6px;
+    text-align: center;
+    border-radius: 2px;
+  }
 
-    .primary { background: linear-gradient(135deg, #38bdf8, #0ea5e9); }
-    .secondary { background: linear-gradient(135deg, #6d28d9, #4f46e5); }
-    .danger { background: linear-gradient(135deg, #fb7185, #f43f5e); }
-    .ghost {
-      background: transparent;
-      border: 1px solid rgba(148,163,184,0.4);
-      color: var(--text);
-    }
+  .tally strong {
+    display: block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.5rem;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
 
-    #robotList {
-      margin-top: 8px;
-      list-style: none;
-      padding: 0;
-      max-height: 280px;
-      overflow-y: auto;
-    }
+  .tally span {
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
 
-    #robotList li {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      align-items: center;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(148,163,184,0.1);
-      border-radius: 14px;
-    }
+  .metrics {
+    background: var(--paper-dark);
+    border: 1px solid var(--paper-shadow);
+    border-radius: 2px;
+    padding: 4px 12px;
+  }
 
-    #robotList li span {
-      display: block;
-      color: var(--muted);
-    }
+  .metrics-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 0.76rem;
+    border-bottom: 1px dashed var(--paper-shadow);
+  }
 
-    #robotList li .name {
-      font-weight: 700;
-      color: white;
-      margin-bottom: 4px;
-    }
+  .metrics-row:last-child {
+    border-bottom: none;
+  }
 
-    #log {
-      height: 240px;
-      overflow-y: auto;
-      background: rgba(15,23,42,0.9);
-      border: 1px solid rgba(148,163,184,0.12);
-      border-radius: 18px;
-      padding: 18px;
-      font-size: 0.95rem;
-      color: #cbd5e1;
-    }
+  .metrics-row span {
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.68rem;
+  }
 
-    #log strong {
-      color: white;
-    }
+  .metrics-row strong {
+    font-family: 'Oswald', sans-serif;
+    color: var(--ink);
+    font-size: 0.9rem;
+  }
 
-    #log p {
-      margin: 0 0 10px;
-      line-height: 1.5;
-    }
+  #robotList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 260px;
+    overflow-y: auto;
+  }
 
-    .badge {
-      display: inline-flex;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      background: rgba(255,255,255,0.08);
-      color: var(--text);
-    }
+  #robotList li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 10px 4px;
+    border-bottom: 1px dashed var(--paper-shadow);
+    font-size: 0.82rem;
+  }
 
-    .badge--liar { background: rgba(251,113,133,0.2); color: #fecaca; }
-    .badge--normal { background: rgba(56,189,248,0.16); color: #bfdbfe; }
+  #robotList .name {
+    font-weight: 700;
+    color: var(--ink);
+  }
 
-    .footer-note {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
+  #robotList .meta {
+    display: block;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+  }
 
-    @media (max-width: 940px) {
-      .app-shell { grid-template-columns: 1fr; }
-    }
-  </style>
+  .stamp {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border: 2px solid;
+    border-radius: 2px;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+  }
+  .stamp.flagged { color: var(--red); border-color: var(--red); }
+  .stamp.verified { color: var(--green); border-color: var(--green); }
+
+  .footnote {
+    margin-top: 14px;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* RIGHT COLUMN */
+  .blueprint-card {
+    background: #d7e2e6;
+    border-radius: 3px;
+    padding: 18px;
+    box-shadow: 0 18px 34px rgba(0,0,0,0.35);
+    position: relative;
+  }
+
+  .blueprint-card .label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+
+  .blueprint-card h2 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.95rem;
+    margin: 0;
+    color: #1b3a44;
+  }
+
+  .blueprint-card .scale {
+    font-size: 0.68rem;
+    color: #3f6b75;
+    letter-spacing: 0.05em;
+  }
+
+  #gridCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 2px;
+    border: 2px solid #1b3a44;
+  }
+
+  .receipt {
+    margin-top: 22px;
+    background: #f4f1e6;
+    border-radius: 2px;
+    padding: 18px 20px;
+    box-shadow: 0 18px 34px rgba(0,0,0,0.35);
+    position: relative;
+    -webkit-mask-image: repeating-linear-gradient(90deg, black 0 3px, transparent 3px 6px);
+    mask-image: none;
+  }
+
+  .receipt h2 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+    margin: 0 0 10px;
+    color: var(--ink);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .receipt h2 .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+
+  #log {
+    height: 220px;
+    overflow-y: auto;
+    font-size: 0.82rem;
+    color: #3a352b;
+    border-top: 1px dashed var(--paper-shadow);
+    padding-top: 10px;
+  }
+
+  #log p {
+    margin: 0 0 9px;
+    line-height: 1.5;
+    padding-left: 10px;
+    border-left: 2px solid var(--paper-shadow);
+  }
+
+  #log p.warn {
+    border-left: 2px solid var(--red);
+    color: #7a2c1c;
+  }
+
+  #log time {
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    margin-right: 6px;
+  }
+
+  @media (max-width: 940px) {
+    .app-shell { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Warehouse Swarm Dashboard</h1>
-    <p>Interactive simulation of grid-based robot movement, auction-based conflict resolution, and liar detection in a warehouse environment.</p>
-  </header>
 
-  <main class="app-shell">
-    <section class="panel">
-      <h2>Controls</h2>
-      <div class="button-row">
-        <button class="primary" id="addRobotBtn">Add Robot</button>
-        <button class="secondary" id="stepBtn">Step Simulation</button>
-        <button class="ghost" id="autoBtn">Auto Run</button>
-        <button class="danger" id="resetBtn">Reset</button>
+<div class="hazard-bar"></div>
+
+<header>
+  <div class="eyebrow">Sector 4 — Automated Floor Ops</div>
+  <h1>Floor Dispatch Terminal</h1>
+  <p>Live positions for the Sector 4 picking swarm. Amber cells are intersection agents — the only bays where units bid tokens for right of way. Units flagged during onboarding audit get pulled the moment another unit confirms their position.</p>
+</header>
+
+<main class="app-shell">
+  <section class="clipboard">
+    <h2>Dispatch Controls</h2>
+    <div class="ctrl-grid">
+      <button class="ctrl dispatch" id="addRobotBtn">+ Unit</button>
+      <button class="ctrl step" id="stepBtn">Step Tick</button>
+      <button class="ctrl auto" id="autoBtn">Auto Tick</button>
+      <button class="ctrl clear" id="resetBtn">Clear Floor</button>
+    </div>
+
+    <div class="tally">
+      <div><strong id="robotCount">0</strong><span>Units</span></div>
+      <div><strong id="liarCount">0</strong><span>Flagged</span></div>
+      <div><strong id="auctionCount">0</strong><span>Auctions</span></div>
+    </div>
+
+    <h2 style="margin-bottom:10px;">Throughput Metrics</h2>
+    <div class="metrics">
+      <div class="metrics-row"><span>Crossings / tick</span><strong id="throughputEl">0.00</strong></div>
+      <div class="metrics-row"><span>Avg wait — High priority</span><strong id="avgHighEl">—</strong></div>
+      <div class="metrics-row"><span>Avg wait — Med priority</span><strong id="avgMedEl">—</strong></div>
+      <div class="metrics-row"><span>Avg wait — Low priority</span><strong id="avgLowEl">—</strong></div>
+    </div>
+    <p class="footnote" style="margin-top:8px;">Lower average wait for High vs Low priority is the proof the auction is working — urgent units should clear intersections faster without any central scheduler telling them to.</p>
+
+    <h2 style="margin-bottom:10px; margin-top:20px;">Unit Manifest</h2>
+    <ul id="robotList"></ul>
+    <p class="footnote">At an intersection, highest tokens + patience wins right of way and pays 10 tokens; losers pay nothing but bank patience so they can't be starved forever. Flagged units misreport their cell and get pulled the moment a neighbor corroborates their true position.</p>
+  </section>
+
+  <section>
+    <div class="blueprint-card">
+      <div class="label-row">
+        <h2>Floor Plan — Grid 8×8</h2>
+        <span class="scale">1 cell = 1 bay</span>
       </div>
+      <canvas id="gridCanvas" width="640" height="640"></canvas>
+    </div>
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <strong id="robotCount">0</strong>
-          <p>Active robots in the swarm</p>
-        </div>
-        <div class="stat-card">
-          <strong id="liarCount">0</strong>
-          <p>Robots flagged as liars</p>
-        </div>
-        <div class="stat-card">
-          <strong id="auctionCount">0</strong>
-          <p>Auction events resolved</p>
-        </div>
-      </div>
+    <div class="receipt">
+      <h2>Dispatch Log <span class="tag">PRINTER 04</span></h2>
+      <div id="log"><p><time>--:--:--</time>Floor idle. Add units or step the tick to begin.</p></div>
+    </div>
+  </section>
+</main>
 
-      <div class="panel" style="padding: 18px 18px 14px; margin-top: 8px;">
-        <h2>Robot Registry</h2>
-        <ul id="robotList"></ul>
-        <p class="footer-note">Red robots are liars. Blue robots behave normally. The list updates automatically when the swarm changes.</p>
-      </div>
-    </section>
+<script>
+  const canvas = document.getElementById('gridCanvas');
+  const ctx = canvas.getContext('2d');
+  const gridSize = 8;
+  const cellSize = canvas.width / gridSize;
+  const addRobotBtn = document.getElementById('addRobotBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const autoBtn = document.getElementById('autoBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const robotCountEl = document.getElementById('robotCount');
+  const liarCountEl = document.getElementById('liarCount');
+  const auctionCountEl = document.getElementById('auctionCount');
+  const throughputEl = document.getElementById('throughputEl');
+  const avgHighEl = document.getElementById('avgHighEl');
+  const avgMedEl = document.getElementById('avgMedEl');
+  const avgLowEl = document.getElementById('avgLowEl');
+  const robotListEl = document.getElementById('robotList');
+  const logEl = document.getElementById('log');
 
-    <section>
-      <div class="panel canvas-card">
-        <h2>Warehouse Grid</h2>
-        <canvas id="gridCanvas" width="640" height="640"></canvas>
-      </div>
+  let robots = [];
+  let auctionCount = 0;
+  let autoRunning = false;
+  let autoId = null;
+  let nextId = 1;
+  let tickCount = 0;
+  let crossingLog = []; // { tier, ticks } — one entry per successful intersection crossing
 
-      <div class="panel" style="margin-top: 20px;">
-        <h2>Activity Log</h2>
-        <div id="log"><p><strong>Ready.</strong> Add robots or step the simulation to begin.</p></div>
-      </div>
-    </section>
-  </main>
+  // Intersection agents: fixed grid nodes where the token auction runs.
+  // Aisles between them are free to move through with no contention.
+  const intersectionNodes = [];
+  for (let ix = 1; ix < gridSize; ix += 3) {
+    for (let iy = 1; iy < gridSize; iy += 3) {
+      intersectionNodes.push({ x: ix, y: iy, bids: [] });
+    }
+  }
+  function getIntersection(x, y) {
+    return intersectionNodes.find(n => n.x === x && n.y === y);
+  }
 
-  <script>
-    const canvas = document.getElementById('gridCanvas');
-    const ctx = canvas.getContext('2d');
-    const gridSize = 8;
-    const cellSize = canvas.width / gridSize;
-    const addRobotBtn = document.getElementById('addRobotBtn');
-    const stepBtn = document.getElementById('stepBtn');
-    const autoBtn = document.getElementById('autoBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const robotCountEl = document.getElementById('robotCount');
-    const liarCountEl = document.getElementById('liarCount');
-    const auctionCountEl = document.getElementById('auctionCount');
-    const robotListEl = document.getElementById('robotList');
-    const logEl = document.getElementById('log');
+  class Robot {
+    constructor(name, urgency, flagged = false) {
+      this.id = nextId++;
+      this.name = name;
+      this.tokens = urgency;
+      this.tier = urgency === 100 ? 'high' : urgency === 60 ? 'med' : 'low';
+      this.patience = 0;
+      this.x = Math.floor(Math.random() * gridSize);
+      this.y = Math.floor(Math.random() * gridSize);
+      this.flagged = flagged;
 
-    let robots = [];
-    let auctionCount = 0;
-    let autoRunning = false;
-    let autoId = null;
-    let liarDetections = 0;
+      // metrics: ticks since this robot last cleared an intersection
+      this.ticksSinceCrossing = 0;
 
-    class Robot {
-      constructor(name, urgency, liar = false) {
-        this.name = name;
-        this.tokens = urgency;
-        this.x = Math.floor(Math.random() * gridSize);
-        this.y = Math.floor(Math.random() * gridSize);
-        this.liar = liar;
-      }
-
-      draw() {
-        const centerX = this.x * cellSize + cellSize / 2;
-        const centerY = this.y * cellSize + cellSize / 2;
-        const radius = cellSize * 0.28;
-
-        const gradient = ctx.createRadialGradient(centerX - 6, centerY - 6, radius * 0.2, centerX, centerY, radius);
-        gradient.addColorStop(0, this.liar ? 'rgba(251,113,133,0.9)' : 'rgba(56,189,248,0.9)');
-        gradient.addColorStop(1, this.liar ? 'rgba(248,113,113,0.45)' : 'rgba(56,189,248,0.35)');
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = this.liar ? 'rgba(251,113,133,0.7)' : 'rgba(56,189,248,0.7)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = '600 14px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.name, centerX, centerY - 6);
-
-        ctx.font = '12px Inter, sans-serif';
-        ctx.fillText(`${this.tokens} tk`, centerX, centerY + 14);
-      }
-
-      move() {
-        const directions = [
-          { dx: 0, dy: 1 },
-          { dx: 1, dy: 0 },
-          { dx: 0, dy: -1 },
-          { dx: -1, dy: 0 }
-        ];
-
-        const choice = directions[Math.floor(Math.random() * directions.length)];
-        this.x = Math.min(gridSize - 1, Math.max(0, this.x + choice.dx));
-        this.y = Math.min(gridSize - 1, Math.max(0, this.y + choice.dy));
-      }
+      // deadlock/backoff: tracks repeated losses at the same node
+      this.consecutiveLossNode = null;
+      this.consecutiveLossCount = 0;
+      this.backoffTicks = 0;
     }
 
-    function drawBackground() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let x = 0; x <= gridSize; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x * cellSize, 0);
-        ctx.lineTo(x * cellSize, canvas.height);
-        ctx.strokeStyle = 'rgba(148,163,184,0.18)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-      for (let y = 0; y <= gridSize; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0, y * cellSize);
-        ctx.lineTo(canvas.width, y * cellSize);
-        ctx.strokeStyle = 'rgba(148,163,184,0.18)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
+    draw() {
+      const cx = this.x * cellSize + cellSize / 2;
+      const cy = this.y * cellSize + cellSize / 2;
+      const w = cellSize * 0.5;
+      const h = cellSize * 0.36;
 
-      ctx.fillStyle = 'rgba(255,255,255,0.02)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // pallet shadow
+      ctx.fillStyle = 'rgba(27,58,68,0.18)';
+      ctx.fillRect(cx - w / 2 + 3, cy - h / 2 + 5, w, h);
 
-      ctx.font = '600 12px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(226,232,240,0.45)';
-      for (let x = 0; x < gridSize; x++) {
-        for (let y = 0; y < gridSize; y++) {
-          ctx.fillText(`${x},${y}`, x * cellSize + 8, y * cellSize + 16);
+      // crate body
+      ctx.fillStyle = this.flagged ? '#b8402a' : '#c9822f';
+      ctx.strokeStyle = '#1b3a44';
+      ctx.lineWidth = 2;
+      ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+      ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+
+      // crate slats
+      ctx.strokeStyle = 'rgba(27,58,68,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, cy);
+      ctx.lineTo(cx + w / 2, cy);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fbf6e8';
+      ctx.font = "700 11px 'JetBrains Mono', monospace";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.name, cx, cy - h / 2 - 8);
+
+      ctx.fillStyle = '#1b3a44';
+      ctx.font = "600 10px 'JetBrains Mono', monospace";
+      ctx.fillText(`${this.tokens}tk`, cx, cy);
+
+      // patience pips — one per lost auction, waiting to be spent
+      if (this.patience > 0) {
+        ctx.fillStyle = '#a97318';
+        for (let p = 0; p < Math.min(this.patience, 4); p++) {
+          ctx.beginPath();
+          ctx.arc(cx - w / 2 + 6 + p * 7, cy + h / 2 + 8, 2.4, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     }
 
-    function drawCanvas() {
-      drawBackground();
-      robots.forEach(robot => robot.draw());
+    // Decide where this robot wants to go next tick. Does NOT move yet —
+    // if the target cell is an intersection, the move has to clear an
+    // auction first (see resolveIntersection).
+    intendMove() {
+      const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+      const [dx, dy] = dirs[Math.floor(Math.random() * dirs.length)];
+      const nx = Math.min(gridSize - 1, Math.max(0, this.x + dx));
+      const ny = Math.min(gridSize - 1, Math.max(0, this.y + dy));
+      return { nx, ny };
+    }
+  }
+
+  function drawBackground() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#eaf1f2';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i <= gridSize; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, canvas.height);
+      ctx.strokeStyle = 'rgba(27,58,68,0.16)';
+      ctx.lineWidth = i % 4 === 0 ? 1.4 : 0.7;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, i * cellSize);
+      ctx.lineTo(canvas.width, i * cellSize);
+      ctx.stroke();
     }
 
-    function updateStats() {
-      robotCountEl.textContent = robots.length;
-      liarCountEl.textContent = robots.filter(r => r.liar).length;
-      auctionCountEl.textContent = auctionCount;
-      renderRobotList();
-    }
-
-    function renderRobotList() {
-      robotListEl.innerHTML = '';
-      robots.forEach(robot => {
-        const item = document.createElement('li');
-        const left = document.createElement('div');
-        const name = document.createElement('span');
-        const details = document.createElement('span');
-        const badge = document.createElement('span');
-
-        name.className = 'name';
-        name.textContent = robot.name;
-        details.textContent = `${robot.tokens} tokens • ${robot.x},${robot.y}`;
-        badge.className = 'badge ' + (robot.liar ? 'badge--liar' : 'badge--normal');
-        badge.textContent = robot.liar ? 'LIAR' : 'NORMAL';
-
-        left.appendChild(name);
-        left.appendChild(details);
-        item.appendChild(left);
-        item.appendChild(badge);
-        robotListEl.appendChild(item);
-      });
-    }
-
-    function log(message, type = 'info') {
-      const p = document.createElement('p');
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      p.innerHTML = `<strong>[${time}]</strong> ${message}`;
-      if (type === 'warn') {
-        p.style.color = '#fda4af';
-      }
-      logEl.appendChild(p);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    function addRobot() {
-      const name = `R${robots.length + 1}`;
-      const urgency = [30, 60, 100][Math.floor(Math.random() * 3)];
-      const liar = Math.random() < 0.18;
-      robots.push(new Robot(name, urgency, liar));
-      log(`${name} joined the grid with ${urgency} tokens ${liar ? 'and liar alert' : ''}`);
-      updateStats();
-      drawCanvas();
-    }
-
-    function stepSimulation() {
-      robots.forEach(robot => robot.move());
-      const conflictGroups = groupRobotsByCell();
-      resolveAuctions(conflictGroups);
-      detectLiars();
-      updateStats();
-      drawCanvas();
-    }
-
-    function groupRobotsByCell() {
-      const groups = {};
-      robots.forEach(robot => {
-        const key = `${robot.x},${robot.y}`;
-        groups[key] = groups[key] || [];
-        groups[key].push(robot);
-      });
-      return Object.values(groups).filter(group => group.length > 1);
-    }
-
-    function resolveAuctions(groups) {
-      groups.forEach(group => {
-        const winner = group.reduce((best, robot) => robot.tokens > best.tokens ? robot : best);
-        group.forEach(robot => {
-          if (robot === winner) return;
-          robot.tokens = Math.max(0, robot.tokens - 5);
-        });
-        winner.tokens = Math.max(0, winner.tokens - 10);
-        auctionCount += 1;
-        log(`Auction at (${winner.x},${winner.y}): ${winner.name} wins with ${winner.tokens} tokens remaining.`);
-      });
-    }
-
-    function detectLiars() {
-      const removed = [];
-      robots = robots.filter(robot => {
-        if (!robot.liar) return true;
-        const nearby = robots.filter(other => other !== robot && Math.abs(other.x - robot.x) <= 1 && Math.abs(other.y - robot.y) <= 1);
-        if (nearby.length > 0) {
-          removed.push(robot);
-          return false;
-        }
-        return true;
-      });
-      removed.forEach(liar => {
-        liarDetections += 1;
-        log(`${liar.name} was identified and removed from the swarm.`, 'warn');
-      });
-    }
-
-    function toggleAuto() {
-      autoRunning = !autoRunning;
-      if (autoRunning) {
-        autoBtn.textContent = 'Pause Auto';
-        autoBtn.classList.add('danger');
-        autoBtn.classList.remove('ghost');
-        autoId = setInterval(() => {
-          stepSimulation();
-        }, 850);
-      } else {
-        autoBtn.textContent = 'Auto Run';
-        autoBtn.classList.remove('danger');
-        autoBtn.classList.add('ghost');
-        clearInterval(autoId);
+    ctx.font = "9px 'JetBrains Mono', monospace";
+    ctx.fillStyle = 'rgba(27,58,68,0.4)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    for (let x = 0; x < gridSize; x++) {
+      for (let y = 0; y < gridSize; y++) {
+        ctx.fillText(`${x}${y}`, x * cellSize + 5, y * cellSize + 13);
       }
     }
 
-    function resetSimulation() {
-      robots = [];
-      auctionCount = 0;
-      liarDetections = 0;
-      autoRunning = false;
-      clearInterval(autoId);
-      autoBtn.textContent = 'Auto Run';
-      autoBtn.classList.remove('danger');
-      autoBtn.classList.add('ghost');
-      log('Simulation reset.');
-      updateStats();
-      drawCanvas();
-    }
+    // highlight intersection agents — the only cells where auctions happen
+    intersectionNodes.forEach(node => {
+      ctx.fillStyle = 'rgba(226,162,51,0.22)';
+      ctx.fillRect(node.x * cellSize, node.y * cellSize, cellSize, cellSize);
+      ctx.strokeStyle = 'rgba(169,115,24,0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(node.x * cellSize + 1, node.y * cellSize + 1, cellSize - 2, cellSize - 2);
+    });
+  }
 
-    addRobotBtn.addEventListener('click', addRobot);
-    stepBtn.addEventListener('click', stepSimulation);
-    autoBtn.addEventListener('click', toggleAuto);
-    resetBtn.addEventListener('click', resetSimulation);
+  function drawCanvas() {
+    drawBackground();
+    robots.forEach(r => r.draw());
+  }
 
-    drawCanvas();
+  function updateStats() {
+    robotCountEl.textContent = robots.length;
+    liarCountEl.textContent = robots.filter(r => r.flagged).length;
+    auctionCountEl.textContent = auctionCount;
+    renderMetrics();
+    renderRobotList();
+  }
+
+  function renderMetrics() {
+    const byTier = { high: [], med: [], low: [] };
+    crossingLog.forEach(c => byTier[c.tier].push(c.ticks));
+    const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—';
+
+    throughputEl.textContent = tickCount > 0 ? (crossingLog.length / tickCount).toFixed(2) : '0.00';
+    avgHighEl.textContent = avg(byTier.high);
+    avgMedEl.textContent = avg(byTier.med);
+    avgLowEl.textContent = avg(byTier.low);
+  }
+
+  function renderRobotList() {
+    robotListEl.innerHTML = '';
+    robots.forEach(r => {
+      const li = document.createElement('li');
+      const left = document.createElement('div');
+      const patienceNote = r.patience > 0 ? ` · patience ${r.patience}` : '';
+      const backoffNote = r.backoffTicks > 0 ? ` · backing off (${r.backoffTicks})` : '';
+      left.innerHTML = `<span class="name">${r.name}</span><span class="meta">${r.tokens} tokens${patienceNote}${backoffNote} · bay ${r.x}${r.y}</span>`;
+      const stamp = document.createElement('span');
+      stamp.className = 'stamp ' + (r.flagged ? 'flagged' : 'verified');
+      stamp.textContent = r.flagged ? 'Flagged' : 'Cleared';
+      li.appendChild(left);
+      li.appendChild(stamp);
+      robotListEl.appendChild(li);
+    });
+  }
+
+  function log(message, warn = false) {
+    const p = document.createElement('p');
+    if (warn) p.className = 'warn';
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    p.innerHTML = `<time>${time}</time>${message}`;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function addRobot() {
+    const name = `U${robots.length + 1}`;
+    const urgency = [30, 60, 100][Math.floor(Math.random() * 3)];
+    const flagged = Math.random() < 0.18;
+    robots.push(new Robot(name, urgency, flagged));
+    log(`${name} checked onto the floor at ${urgency} priority tokens${flagged ? ' — pending audit' : ''}.`);
     updateStats();
-  </script>
+    drawCanvas();
+  }
+
+  function stepSimulation() {
+    tickCount += 1;
+    intersectionNodes.forEach(node => { node.bids = []; });
+    robots.forEach(r => { r.ticksSinceCrossing += 1; });
+
+    // Phase 1 — every robot broadcasts its intended next cell.
+    // Robots on backoff route through aisles only, avoiding intersections
+    // entirely for a tick or two (deadlock/livelock relief). Everyone else
+    // heading into an intersection submits a sealed bid instead of moving;
+    // anyone heading into an aisle cell just moves.
+    robots.forEach(r => {
+      if (r.backoffTicks > 0) {
+        r.backoffTicks -= 1;
+        moveAvoidingIntersections(r);
+        return;
+      }
+      const { nx, ny } = r.intendMove();
+      const node = getIntersection(nx, ny);
+      if (node) {
+        node.bids.push({ robot: r, nx, ny });
+      } else {
+        r.x = nx;
+        r.y = ny;
+      }
+    });
+
+    // Phase 2 — each intersection agent resolves its own bids independently.
+    intersectionNodes.forEach(resolveIntersection);
+
+    auditFlagged();
+    updateStats();
+    drawCanvas();
+  }
+
+  // A robot backing off tries a few random directions looking for one that
+  // does NOT lead into an intersection cell, instead of contesting it again
+  // immediately. If nothing free-flowing is found it just holds position.
+  function moveAvoidingIntersections(robot) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const { nx, ny } = robot.intendMove();
+      if (!getIntersection(nx, ny)) {
+        robot.x = nx;
+        robot.y = ny;
+        return;
+      }
+    }
+  }
+
+  // Called whenever a robot successfully clears an intersection (contested
+  // or not) — feeds the per-tier latency metrics.
+  function recordCrossing(robot) {
+    crossingLog.push({ tier: robot.tier, ticks: robot.ticksSinceCrossing });
+    robot.ticksSinceCrossing = 0;
+    robot.consecutiveLossNode = null;
+    robot.consecutiveLossCount = 0;
+  }
+
+  // The intersection agent: picks a winner, charges tokens, and grants
+  // a patience bonus to whoever loses so low-urgency units aren't starved.
+  function resolveIntersection(node) {
+    if (node.bids.length === 0) return;
+
+    if (node.bids.length === 1) {
+      const { robot, nx, ny } = node.bids[0];
+      robot.x = nx;
+      robot.y = ny;
+      recordCrossing(robot);
+      return; // uncontested — no bid needed, nothing spent
+    }
+
+    const winnerBid = node.bids.reduce((best, b) => {
+      const score = b.robot.tokens + b.robot.patience;
+      const bestScore = best.robot.tokens + best.robot.patience;
+      if (score > bestScore) return b;
+      if (score === bestScore && b.robot.id > best.robot.id) return b; // tie-break by id
+      return best;
+    });
+
+    const nodeKey = `${node.x},${node.y}`;
+
+    node.bids.forEach(b => {
+      if (b === winnerBid) {
+        b.robot.tokens = Math.max(0, b.robot.tokens - 10);
+        b.robot.patience = 0;
+        b.robot.x = b.nx;
+        b.robot.y = b.ny; // winner crosses; losers hold position this tick
+        recordCrossing(b.robot);
+      } else {
+        b.robot.patience += 1; // starvation prevention
+
+        // deadlock/livelock relief — a robot that loses at the SAME node
+        // twice in a row backs off instead of contesting it again next tick
+        if (b.robot.consecutiveLossNode === nodeKey) {
+          b.robot.consecutiveLossCount += 1;
+        } else {
+          b.robot.consecutiveLossNode = nodeKey;
+          b.robot.consecutiveLossCount = 1;
+        }
+        if (b.robot.consecutiveLossCount >= 2) {
+          b.robot.backoffTicks = 1 + Math.floor(Math.random() * 2); // 1-2 ticks
+          b.robot.consecutiveLossCount = 0;
+          b.robot.consecutiveLossNode = null;
+          log(`${b.robot.name} backs off after repeated losses at (${node.x},${node.y}).`, true);
+        }
+      }
+    });
+
+    auctionCount += 1;
+    log(`Intersection (${winnerBid.nx},${winnerBid.ny}) contested by ${node.bids.length} units — ${winnerBid.robot.name} wins with ${winnerBid.robot.tokens}tk left, ${node.bids.length - 1} held back.`);
+  }
+
+  function auditFlagged() {
+    const removed = [];
+    robots = robots.filter(r => {
+      if (!r.flagged) return true;
+      const nearby = robots.some(o => o !== r && Math.abs(o.x - r.x) <= 1 && Math.abs(o.y - r.y) <= 1);
+      if (nearby) { removed.push(r); return false; }
+      return true;
+    });
+    removed.forEach(r => log(`${r.name} corroborated by a neighboring unit — pulled from the floor.`, true));
+  }
+
+  function toggleAuto() {
+    autoRunning = !autoRunning;
+    if (autoRunning) {
+      autoBtn.textContent = 'Pause Auto';
+      autoId = setInterval(stepSimulation, 850);
+    } else {
+      autoBtn.textContent = 'Auto Tick';
+      clearInterval(autoId);
+    }
+  }
+
+  function resetSimulation() {
+    robots = [];
+    auctionCount = 0;
+    tickCount = 0;
+    crossingLog = [];
+    autoRunning = false;
+    clearInterval(autoId);
+    autoBtn.textContent = 'Auto Tick';
+    log('Floor cleared.');
+    updateStats();
+    drawCanvas();
+  }
+
+  addRobotBtn.addEventListener('click', addRobot);
+  stepBtn.addEventListener('click', stepSimulation);
+  autoBtn.addEventListener('click', toggleAuto);
+  resetBtn.addEventListener('click', resetSimulation);
+
+  drawCanvas();
+  updateStats();
+</script>
 </body>
 </html>
