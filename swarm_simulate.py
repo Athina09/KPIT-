@@ -1,6 +1,8 @@
+import json
 import random
 import sys
 from copy import deepcopy
+from pathlib import Path
 from statistics import mean
 from environment.grid_world import GridWorld
 from agents.robot_agent import RobotAgent
@@ -221,6 +223,15 @@ def print_statistical_summary(label, metric_runs, total_ticks):
         print(f"Average quarantine tick: {summary['average_quarantine_tick_mean']:.2f}")
 
 
+def save_multi_seed_results(results, output_path):
+    if output_path is None:
+        return None
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    return str(output_file)
+
+
 def run_centralized(num_robots=6, width=8, height=8, max_ticks=40,
                     seed=42, initial_positions=None, pre_generated_jobs=None,
                     scheduler_failure_tick=None, scheduler_recovery_tick=None):
@@ -427,7 +438,7 @@ def compare_two_fleets(num_robots=6, width=8, height=8, max_ticks=40, seed=42,
 
 def run_multi_seed_comparison(num_seeds=5, start_seed=1, num_robots=6, width=8, height=8,
                                max_ticks=40, central_scheduler_failure_tick=None,
-                               central_scheduler_recovery_tick=None):
+                               central_scheduler_recovery_tick=None, output_path=None):
     seeds = list(range(start_seed, start_seed + num_seeds))
     swarm_results = []
     central_results = []
@@ -448,11 +459,15 @@ def run_multi_seed_comparison(num_seeds=5, start_seed=1, num_robots=6, width=8, 
 
     print_statistical_summary("Swarm", swarm_results, max_ticks)
     print_statistical_summary("Centralized", central_results, max_ticks)
-    return {
+    results = {
         "seeds": seeds,
         "swarm": aggregate_metrics_across_runs(swarm_results, max_ticks),
         "centralized": aggregate_metrics_across_runs(central_results, max_ticks),
     }
+    saved_path = save_multi_seed_results(results, output_path)
+    if saved_path is not None:
+        print(f"\nSaved multi-seed results to {saved_path}")
+    return results
 
 
 def run_swarm(num_robots=6, width=8, height=8, max_ticks=40, seed=42,
@@ -749,6 +764,19 @@ def run_swarm(num_robots=6, width=8, height=8, max_ticks=40, seed=42,
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         mode = sys.argv[1]
+        args = sys.argv[2:]
+        options = {}
+        for index in range(0, len(args), 2):
+            if index + 1 >= len(args):
+                break
+            raw_key = args[index].lstrip('-')
+            key = raw_key.replace('-', '_')
+            value = args[index + 1]
+            if key in {"num_seeds", "start_seed", "max_ticks", "num_robots", "width", "height"}:
+                options[key] = int(value)
+            else:
+                options[key] = value
+
         if mode == "compare":
             compare_two_fleets(num_robots=6, width=8, height=8, max_ticks=40, seed=42)
         elif mode == "compare_failure":
@@ -763,23 +791,25 @@ if __name__ == "__main__":
             )
         elif mode == "multi_seed":
             run_multi_seed_comparison(
-                num_seeds=5,
-                start_seed=1,
-                num_robots=6,
-                width=8,
-                height=8,
-                max_ticks=40,
+                num_seeds=options.get("num_seeds", 5),
+                start_seed=options.get("start_seed", 1),
+                num_robots=options.get("num_robots", 6),
+                width=options.get("width", 8),
+                height=options.get("height", 8),
+                max_ticks=options.get("max_ticks", 40),
+                output_path=options.get("output"),
             )
         elif mode == "multi_seed_failure":
             run_multi_seed_comparison(
-                num_seeds=5,
-                start_seed=1,
-                num_robots=6,
-                width=8,
-                height=8,
-                max_ticks=40,
+                num_seeds=options.get("num_seeds", 5),
+                start_seed=options.get("start_seed", 1),
+                num_robots=options.get("num_robots", 6),
+                width=options.get("width", 8),
+                height=options.get("height", 8),
+                max_ticks=options.get("max_ticks", 40),
                 central_scheduler_failure_tick=10,
                 central_scheduler_recovery_tick=20,
+                output_path=options.get("output"),
             )
         else:
             run_swarm(num_robots=6, width=8, height=8, max_ticks=40)

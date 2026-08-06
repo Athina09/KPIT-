@@ -1,0 +1,24 @@
+{
+  "seeds": [
+    1,
+    2
+  ],
+  "swarm": {
+    "runs": 2,
+    "jobs_spawned_mean": 9,
+    "jobs_delivered_mean": 0.5,
+    "throughput_jobs_per_minute_mean": 3.0,
+    "average_delivery_time_mean": 5.0,
+    "quarantine_events_mean": 0,
+    "average_quarantine_tick_mean": null
+  },
+  "centralized": {
+    "runs": 2,
+    "jobs_spawned_mean": 9,
+    "jobs_delivered_mean": 1,
+    "throughput_jobs_per_minute_mean": 6.0,
+    "average_delivery_time_mean": 6.0,
+    "quarantine_events_mean": 0,
+    "average_quarantine_tick_mean": null
+  }
+}
