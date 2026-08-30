@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Swarm Telemetry — Decentralized vs Centralized</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --line: #232a33;
+    --ink: #e6edf3; --muted: #8b949e;
+    --green: #2ea043; --blue: #388bfd; --amber: #d29922; --red: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  header { padding: 20px 26px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  header p { margin: 6px 0 0; color: var(--muted); font-size: 0.85rem; max-width: 780px; }
+  .wrap { display: grid; grid-template-columns: 1fr 360px; gap: 20px; padding: 20px 26px; max-width: 1280px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  canvas { width: 100%; height: auto; display: block; background: #0b0e13; border-radius: 8px; }
+  .controls { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  button { background: #21262d; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--blue); }
+  input[type=range] { flex: 1; min-width: 140px; }
+  .tick { color: var(--muted); font-size: 0.85rem; min-width: 90px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  td.dec { color: var(--green); } td.cen { color: var(--blue); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 0.78rem; color: var(--muted); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .spark { width: 100%; height: 90px; background: #0b0e13; border-radius: 8px; margin-top: 6px; }
+  .hint { color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+  .err { color: var(--red); font-size: 0.85rem; }
+  @media (max-width: 920px) { .wrap { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Swarm Telemetry &mdash; Decentralized Token Auction vs Centralized Scheduler</h1>
+  <p>Live replay of the Python engine (<code>run_dashboard.py</code> &rarr; <code>dashboard_data.json</code>). Green = healthy robot, red = quarantined by distributed vote, ring = the injected liar, amber cells = intersections, dark cells = obstacles. Diamonds are goals.</p>
+</header>
+
+<div class="wrap">
+  <div>
+    <div class="card">
+      <h2>Floor Replay (decentralized swarm)</h2>
+      <canvas id="grid" width="620" height="620"></canvas>
+      <div class="controls">
+        <button id="play">Play</button>
+        <button id="step">Step</button>
+        <input type="range" id="scrub" min="0" max="0" value="0" />
+        <span class="tick" id="tickLabel">tick 0</span>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--green)"></span>healthy</span>
+        <span><span class="dot" style="background:var(--red)"></span>quarantined</span>
+        <span><span class="dot" style="background:var(--amber)"></span>intersection</span>
+        <span><span class="dot" style="background:#30363d"></span>obstacle</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Metrics comparison</h2>
+      <table id="metrics">
+        <thead><tr><th>metric</th><th>decentralized</th><th>centralized</th></tr></thead>
+        <tbody id="metricRows"><tr><td colspan="3" class="hint">Loading dashboard_data.json…</td></tr></tbody>
+      </table>
+      <p id="err" class="err"></p>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h2>Cumulative throughput</h2>
+      <canvas id="spark" class="spark" width="330" height="90"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--green)"></span>decentralized</span>
+        <span><span class="dot" style="background:var(--blue)"></span>centralized</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h2>How to generate data</h2>
+      <p class="hint">Run <code>python3 run_dashboard.py</code> in the repo, then serve this folder (<code>python3 -m http.server</code>) and open <code>dashboard.html</code>. The fault injector turns R3 into a liar mid-run; watch it flip to red once neighbors corroborate its true position.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const gc = document.getElementById('grid'), gtx = gc.getContext('2d');
+const sc = document.getElementById('spark'), stx = sc.getContext('2d');
+const scrub = document.getElementById('scrub'), tickLabel = document.getElementById('tickLabel');
+let data = null, frames = [], cur = 0, playing = false, timer = null, cell = 20;
+
+fetch('dashboard_data.json')
+  .then(r => { if (!r.ok) throw new Error('dashboard_data.json not found — run python3 run_dashboard.py first'); return r.json(); })
+  .then(d => { data = d; frames = d.frames || []; init(); })
+  .catch(e => { document.getElementById('err').textContent = e.message; });
+
+function init() {
+  renderMetrics();
+  renderSpark();
+  if (!frames.length) return;
+  const w = frames[0].width, h = frames[0].height;
+  cell = Math.floor(Math.min(gc.width / w, gc.height / h));
+  scrub.max = frames.length - 1;
+  scrub.addEventListener('input', () => { cur = +scrub.value; draw(); });
+  document.getElementById('play').addEventListener('click', togglePlay);
+  document.getElementById('step').addEventListener('click', () => { cur = Math.min(frames.length - 1, cur + 1); scrub.value = cur; draw(); });
+  draw();
+}
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('play').textContent = playing ? 'Pause' : 'Play';
+  if (playing) timer = setInterval(() => {
+    cur = (cur + 1) % frames.length; scrub.value = cur; draw();
+  }, 120);
+  else clearInterval(timer);
+}
+
+function draw() {
+  const f = frames[cur]; if (!f) return;
+  tickLabel.textContent = 'tick ' + f.tick + '  ·  tasks ' + f.tasks_completed;
+  gtx.clearRect(0, 0, gc.width, gc.height);
+  gtx.fillStyle = '#0b0e13'; gtx.fillRect(0, 0, gc.width, gc.height);
+
+  const set = a => new Set((a || []).map(p => p[0] + ',' + p[1]));
+  const obst = set(f.obstacles), inter = set(f.intersections);
+  for (let x = 0; x < f.width; x++) for (let y = 0; y < f.height; y++) {
+    const k = x + ',' + y;
+    gtx.strokeStyle = '#1b2028'; gtx.strokeRect(x * cell, y * cell, cell, cell);
+    if (obst.has(k)) { gtx.fillStyle = '#30363d'; gtx.fillRect(x * cell, y * cell, cell, cell); }
+    else if (inter.has(k)) { gtx.fillStyle = 'rgba(210,153,34,0.18)'; gtx.fillRect(x * cell, y * cell, cell, cell); }
+  }
+
+  Object.entries(f.robots).forEach(([id, r]) => {
+    // goal diamond
+    if (r.goal) {
+      const gx = r.goal[0] * cell + cell / 2, gy = r.goal[1] * cell + cell / 2;
+      gtx.save(); gtx.translate(gx, gy); gtx.rotate(Math.PI / 4);
+      gtx.strokeStyle = r.quarantined ? '#f85149' : '#2ea043';
+      gtx.strokeRect(-cell * 0.16, -cell * 0.16, cell * 0.32, cell * 0.32);
+      gtx.restore();
+    }
+    const cx = r.x * cell + cell / 2, cy = r.y * cell + cell / 2;
+    gtx.beginPath(); gtx.arc(cx, cy, cell * 0.34, 0, Math.PI * 2);
+    gtx.fillStyle = r.quarantined ? '#f85149' : '#2ea043'; gtx.fill();
+    if (r.is_liar) { gtx.lineWidth = 2.4; gtx.strokeStyle = '#d29922'; gtx.stroke(); }
+    gtx.fillStyle = '#0b0e13'; gtx.font = '700 ' + Math.floor(cell * 0.34) + 'px monospace';
+    gtx.textAlign = 'center'; gtx.textBaseline = 'middle';
+    gtx.fillText(id.replace('R', ''), cx, cy);
+  });
+}
+
+function renderMetrics() {
+  if (!data) return;
+  const d = data.decentralized.summary, c = data.centralized.summary;
+  const rows = [
+    ['throughput / min', d.throughput_per_min, c.throughput_per_min],
+    ['avg wait (ticks)', d.avg_wait_ticks, c.avg_wait_ticks],
+    ['conflict resolve (ticks)', d.avg_conflict_resolution_ticks, c.avg_conflict_resolution_ticks],
+    ['tasks completed', d.tasks_completed, c.tasks_completed],
+    ['fault-detect latency', d.fault_detection_latency_ticks ?? 'n/a', 'n/a'],
+    ['false-positive rate', d.false_positive_rate, c.false_positive_rate],
+    ['quarantined', (d.quarantined.join(', ') || 'none'), (c.quarantined.join(', ') || 'none')],
+  ];
+  document.getElementById('metricRows').innerHTML = rows.map(
+    r => `<tr><td>${r[0]}</td><td class="dec">${r[1]}</td><td class="cen">${r[2]}</td></tr>`
+  ).join('');
+}
+
+function renderSpark() {
+  if (!data) return;
+  const a = data.decentralized.throughput_series || [];
+  const b = data.centralized.throughput_series || [];
+  const n = Math.max(a.length, b.length, 1);
+  const max = Math.max(1, ...a, ...b);
+  stx.clearRect(0, 0, sc.width, sc.height);
+  const plot = (arr, color) => {
+    stx.beginPath(); stx.strokeStyle = color; stx.lineWidth = 2;
+    arr.forEach((v, i) => {
+      const x = (i / (n - 1)) * (sc.width - 6) + 3;
+      const y = sc.height - 6 - (v / max) * (sc.height - 12);
+      i ? stx.lineTo(x, y) : stx.moveTo(x, y);
+    });
+    stx.stroke();
+  };
+  plot(a, '#2ea043'); plot(b, '#388bfd');
+}
+</script>
+</body>
+</html>

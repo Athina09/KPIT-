@@ -1,0 +1,96 @@
+{
+  "swarm": {
+    "mode": "decentralized",
+    "ticks": 200,
+    "tasks_completed": 37,
+    "throughput_per_min": 11.1,
+    "avg_wait_ticks": 0.081,
+    "avg_conflict_resolution_ticks": 1,
+    "fault_detection_latency_ticks": 4,
+    "recovery_seconds": 4.0,
+    "tasks_during_recovery": 2,
+    "false_positive_rate": 0.0,
+    "quarantined": [
+      "R3"
+    ],
+    "server_killed": false,
+    "tasks_after_server_kill": 0
+  },
+  "central_healthy": {
+    "mode": "centralized",
+    "ticks": 200,
+    "tasks_completed": 33,
+    "throughput_per_min": 9.9,
+    "avg_wait_ticks": 0.061,
+    "avg_conflict_resolution_ticks": 1,
+    "fault_detection_latency_ticks": null,
+    "recovery_seconds": null,
+    "tasks_during_recovery": null,
+    "false_positive_rate": 0.0,
+    "quarantined": [],
+    "server_killed": false,
+    "tasks_after_server_kill": 0
+  },
+  "central_killed": {
+    "mode": "centralized",
+    "ticks": 200,
+    "tasks_completed": 27,
+    "throughput_per_min": 8.1,
+    "avg_wait_ticks": 0.074,
+    "avg_conflict_resolution_ticks": 1,
+    "fault_detection_latency_ticks": null,
+    "recovery_seconds": null,
+    "tasks_during_recovery": null,
+    "false_positive_rate": 0.0,
+    "quarantined": [],
+    "server_killed": true,
+    "tasks_after_server_kill": 0
+  },
+  "swarm_after_kill": {
+    "mode": "decentralized",
+    "ticks": 200,
+    "tasks_completed": 38,
+    "throughput_per_min": 11.4,
+    "avg_wait_ticks": 0.079,
+    "avg_conflict_resolution_ticks": 1,
+    "fault_detection_latency_ticks": null,
+    "recovery_seconds": null,
+    "tasks_during_recovery": null,
+    "false_positive_rate": 0.0,
+    "quarantined": [],
+    "server_killed": false,
+    "tasks_after_server_kill": 0
+  },
+  "success": {
+    "no_central_coordinator": true,
+    "recovery_within_seconds": true,
+    "recovery_seconds": 4.0,
+    "throughput_ratio_during_recovery": 1.2,
+    "throughput_ge_80pct": true,
+    "central_deadlocks_on_server_kill": true,
+    "swarm_survives_server_kill": true,
+    "all_passed": true
+  },
+  "events_sample": [
+    {
+      "type": "auction_won",
+      "robot_id": "R1",
+      "timestamp": 4.0
+    },
+    {
+      "type": "auction_won",
+      "robot_id": "R7",
+      "timestamp": 16.0
+    },
+    {
+      "type": "auction_won",
+      "robot_id": "R2",
+      "timestamp": 22.0
+    },
+    {
+      "type": "quarantine",
+      "robot_id": "R3",
+      "timestamp": 24.0
+    }
+  ]
+}

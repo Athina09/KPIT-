@@ -1,21 +1,35 @@
 """
-Auction: resolves conflicts when two+ robots want the same cell.
+Decentralized intersection arbitration via a token-based priority auction.
 
-This function computes an "effective bid" per robot using the
-existing `compute_bid()` (urgency + wait_time bonus) plus a token
-budget term. Ties are broken randomly. The function optionally emits
-an `auction_won` event via the provided `emit_event` callable.
+Every robot runs this SAME logic locally on the set of neighbor bids it heard,
+so two robots contending for one cell independently compute the same winner
+without any server. Economics:
+
+  * bid           = min(budget, urgency-derived) + wait_bid_bonus * wait_time
+  * winner        pays `bid_cost_on_win` tokens
+  * each loser     gets `refund_on_loss` tokens back (anti-starvation)
+  * every tick     budgets regenerate by `decay_recovery_per_tick` up to a cap
+  * ties           broken deterministically by robot_id (stable across robots)
+
+The `resolve_conflict` function resolves cell conflicts for multi-robot scenarios
+and emits auction events when requested.
 """
+
+from __future__ import annotations
 
 import random
 from typing import Callable, Optional
 
-def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
-                     emit_event: Optional[Callable]=None,
-                     token_cost: float = 1.0,
-                     token_weight: float = 0.5,
-                     rng: Optional[random.Random]=None,
-                     msg_bus=None):
+
+def resolve_conflict(
+    robots_wanting_cell,
+    tick: Optional[int] = None,
+    emit_event: Optional[Callable] = None,
+    token_cost: float = 1.0,
+    token_weight: float = 0.5,
+    rng: Optional[random.Random] = None,
+    msg_bus=None,
+):
     """
     robots_wanting_cell: list of RobotAgent instances all trying
         to move into the same cell this tick.
@@ -27,10 +41,10 @@ def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
     msg_bus: optional MessageBus to query broadcast info about competitors
 
     Returns: the winning RobotAgent.
-    
+
     Auction uses effective_bid = compute_bid() + token_weight * token_budget,
     plus optional adjustments from broadcast info (e.g., if a robot has very
-    high ETA, it gets a small penalty). Ties broken randomly.
+    high ETA, it gets a small penalty). Ties broken deterministically.
     """
     if not robots_wanting_cell:
         return None
@@ -43,7 +57,7 @@ def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
     bids = []
     for robot in robots_wanting_cell:
         base = robot.compute_bid()
-        token_term = token_weight * float(getattr(robot, "token_budget", 0.0))
+        token_term = token_weight * float(getattr(robot, "token_budget", getattr(robot, "budget", 0.0)))
         effective = base + token_term
 
         # optional: adjust bid based on broadcast info (e.g., ETA penalty)
@@ -63,7 +77,6 @@ def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
 
     # find max effective bid
     max_bid = max(b[1] for b in bids)
-    # tie-group (within tiny epsilon)
     eps = 1e-9
     top = [r for r, b in bids if abs(b - max_bid) <= eps]
 
@@ -79,6 +92,8 @@ def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
     # deduct token cost from winner
     if hasattr(winner, "token_budget"):
         winner.token_budget = max(0.0, winner.token_budget - token_cost)
+    if hasattr(winner, "budget"):
+        winner.budget = max(0.0, winner.budget - token_cost)
 
     losers = [r for r in robots_wanting_cell if r is not winner]
     for l in losers:
@@ -94,9 +109,60 @@ def resolve_conflict(robots_wanting_cell, tick: Optional[int]=None,
                 "winning_bid": max_bid,
                 "broadcasts_used": msg_bus is not None,
             }
-            emit_event(Event(type="auction_won", tick=tick, robot_id=winner.robot_id, payload=payload))
+            emit_event(Event(type="auction_won", tick=tick if tick is not None else 0, robot_id=winner.robot_id, payload=payload))
         except Exception:
             # graceful: if Event import fails, call emit_event with a dict
             emit_event({"type": "auction_won", "tick": tick, "robot_id": winner.robot_id, "payload": {"losers": [l.robot_id for l in losers], "winning_bid": max_bid}})
 
     return winner
+
+
+class TokenAuction:
+    def __init__(self, config):
+        self.config = config
+        self.last_resolution_ticks = []   # for the "conflict resolution time" metric
+
+    def _tie_break_key(self, bid_entry):
+        """Higher bid first; deterministic robot_id tie-break so every robot
+        computing the auction locally agrees on the winner."""
+        robot_id, bid = bid_entry
+        return (bid, robot_id)
+
+    def eligible(self, robot) -> bool:
+        """SwarmDock rule: auction skips any robot where status == quarantined."""
+        status = getattr(robot, "status", None)
+        if status == "quarantined" or getattr(robot, "quarantined", False):
+            return False
+        return True
+
+    def resolve_cell(self, contenders):
+        """contenders: list of (robot_id, bid). Returns (winner_id, losers)."""
+        if not contenders:
+            return None, []
+        ranked = sorted(contenders, key=self._tie_break_key, reverse=True)
+        winner_id = ranked[0][0]
+        losers = [rid for rid, _ in ranked[1:]]
+        return winner_id, losers
+
+    def settle(self, robots, winner_id, loser_ids):
+        """Apply token economics after a cell is decided."""
+        cfg = self.config
+        if winner_id in robots:
+            w = robots[winner_id]
+            w.budget = max(0.0, w.budget - cfg.bid_cost_on_win)
+            w.wait_time = 0
+        for rid in loser_ids:
+            if rid in robots:
+                loser = robots[rid]
+                cap = loser.starting_budget * cfg.max_budget_multiplier
+                loser.budget = min(cap, loser.budget + cfg.refund_on_loss)
+                loser.wait_time += 1
+
+    def regen(self, robots):
+        """Passive decay-recovery so low-priority robots aren't starved."""
+        cfg = self.config
+        for robot in robots.values():
+            if not self.eligible(robot):
+                continue
+            cap = robot.starting_budget * cfg.max_budget_multiplier
+            robot.budget = min(cap, robot.budget + cfg.decay_recovery_per_tick)
