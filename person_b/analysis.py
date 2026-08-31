@@ -9,6 +9,8 @@ TODO (later steps): compare_recovery(swarm_log, baseline_log) -> report dict.
 
 from __future__ import annotations
 
+from typing import Any
+
 try:
     from .metrics import MetricsLog
 except ImportError:
